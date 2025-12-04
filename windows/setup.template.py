@@ -160,9 +160,12 @@ setup(
     version=VERSION,
     options={
         "build_exe": dict(
-            packages=["gi", "pyatem"] + plugin_packages,
-            include_files=include_files,
-            zip_include_packages=["*"],
+            packages=["gi", "pyatem"] + plugin_packages,  # pacchetti da includere
+            include_files=include_files,                  # file extra (DLL, gresource, ecc.)
+            zip_include_packages=[],                      # non comprimere pacchetti nello zip
+            zip_exclude_packages=[],                      # opzionale, lascia vuoto
+            includes=includes,                            # moduli aggiuntivi da includere
+            excludes=excludes,                            # moduli da escludere
         ),
         "bdist_msi": dict(
             all_users=True,
