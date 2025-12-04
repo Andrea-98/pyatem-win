@@ -11,15 +11,19 @@ jobs:
     runs-on: windows-2019
     strategy:
       matrix:
-        include: [
-          { msystem: MINGW64, arch: x86_64 },
-        ]
+        include:
+          - msystem: MINGW64
+            arch: x86_64
+
     defaults:
       run:
         shell: msys2 {0}
+
     env:
       ARCH: ${{ matrix.arch }}
-    steps:          
+
+    steps:
+
       - name: Clone this repo
         uses: actions/checkout@v2
         with:
@@ -51,39 +55,44 @@ jobs:
 
       - name: Extract version info
         run: |
-          ls
-          cd buildsrc
           echo "RELEASE_VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
-          cd ..
 
       - name: Clone private repo
         run: git clone "https://git.sr.ht/~martijnbraam/pyatem"
 
       - name: Add more depends from pip
         run: |
-          pip install pyusb zeroconf
+          pip3 install pyusb zeroconf
 
       - name: Build installer
         run: |
           cd pyatem
           python3 setup.py build
           python3 setup.py install
+
           echo "making locales"
           mkdir -pv /mingw64/share/locale/{en,nl,tr}/LC_MESSAGES
           msgfmt -v -o /mingw64/share/locale/en/LC_MESSAGES/openswitcher.mo po/en.po
           msgfmt -v -o /mingw64/share/locale/nl/LC_MESSAGES/openswitcher.mo po/nl.po
           msgfmt -v -o /mingw64/share/locale/tr/LC_MESSAGES/openswitcher.mo po/tr.po
+
           cd gtk_switcher
           glib-compile-resources atem.gresource.xml
           cd ..
+
           cp data/nl.brixit.Switcher.gschema.xml /mingw64/share/glib-2.0/schemas
           glib-compile-schemas /mingw64/share/glib-2.0/schemas
+
           cp -rv ../buildsrc/windows .
           cp windows/launcher gtk_switcher/switcher-control
-          sed -i 's/%VERSION%/${{env.RELEASE_VERSION}}/g' gtk_switcher/switcher-control
+
+          # Usa variabili shell, non sintassi GitHub
+          sed -i "s/%VERSION%/$RELEASE_VERSION/g" gtk_switcher/switcher-control
+
           cd windows
           cp setup.template.py setup.py
-          sed -i 's/%VERSION%/${{env.RELEASE_VERSION}}/g' setup.py
+          sed -i "s/%VERSION%/$RELEASE_VERSION/g" setup.py
+
           python3 setup.py bdist_msi
           python3 setup.py build_exe
           echo "--[Build done]--"
@@ -93,24 +102,23 @@ jobs:
       - name: Archive installer artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: "OpenSwitcher-${{env.RELEASE_VERSION}}-installer.${{ matrix.arch }}"
+          name: "OpenSwitcher-${{ env.RELEASE_VERSION }}-installer.${{ matrix.arch }}"
           path: pyatem/windows/dist
 
       - name: Archive package artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: "OpenSwitcher-${{env.RELEASE_VERSION}}-standalone.${{ matrix.arch }}"
+          name: "OpenSwitcher-${{ env.RELEASE_VERSION }}-standalone.${{ matrix.arch }}"
           path: pyatem/windows/build/openswitcher
 
       - name: Create standalone ZIP for release
         run: |
-          pwd
-          zip -r "OpenSwitcher-${{env.RELEASE_VERSION}}-standalone.${{ matrix.arch}}.zip" pyatem/windows/build/openswitcher
+          zip -r "OpenSwitcher-${RELEASE_VERSION}-standalone.${ARCH}.zip" pyatem/windows/build/openswitcher
 
       - name: Create release
         uses: softprops/action-gh-release@v1
         with:
-          name: "OpenSwitcher ${{env.RELEASE_VERSION}}"
+          name: "OpenSwitcher ${{ env.RELEASE_VERSION }}"
           files: |
             pyatem/windows/dist/*.msi
             OpenSwitcher-*.zip
